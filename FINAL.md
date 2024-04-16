@@ -3,3 +3,5 @@
 ## Arquitectura
 ![Arquitectura](Arquitectura.png)
 
+## ERD
+![ERD](ERD.jpeg)
