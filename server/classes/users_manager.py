@@ -4,7 +4,7 @@ class UsersManager():
     def __init__(self, db: DataBase):
         self.db = db
 
-    def get_patients(self):
+    def get_doctors(self):
         query = '''
                 SELECT * FROM Doctors;
                 '''
@@ -16,5 +16,5 @@ class UsersManager():
 db = DataBase()
 
 manager = UsersManager(db)
-manager.get_patients()
+manager.get_doctors()
     

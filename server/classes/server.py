@@ -1,8 +1,12 @@
 from socket import (socket, AF_INET, SOCK_STREAM)
+from json import (loads, dumps)
 from concurrent.futures import ThreadPoolExecutor
 from threading import Lock
 from db import DataBase
-from manager import Manager
+from users_manager import UsersManager
+from appointments_manager import AppointmentsManager
+from db import DataBase
+
 
 """
 Codigo del servidor.
@@ -10,6 +14,15 @@ Instancia un socket que se encargara de manejar las conexiones.
 Por cada conexion, se instanciara un objeto de la clase Manager,
 y se agregara al ThreadPoolExecutor como un Thread.
 """
+
+operation_mapping = {
+    'log_in': (UsersManager, 'log_in'),
+    'log_out': (UsersManager, 'log_out'),
+    'get_appointments': (AppointmentsManager, 'get_appointments'),
+    'confirm_appointment': (AppointmentsManager, 'confirm_appointment'),
+    'cancel_appointment': (AppointmentsManager, 'cancel_appointment'),
+    'get_appointments_per_doctor': (AppointmentsManager, 'get_appointments_per_doctor')
+}
 
 class Server():
     def __init__(self, port):
@@ -19,17 +32,47 @@ class Server():
     def serve(self):
         print('Starting server...')
 
+        db_conn = DataBase()
+
         with socket(AF_INET, SOCK_STREAM) as s:
             s.bind((self.host, self.port))
             s.listen()
-
-            db = DataBase()
 
             with ThreadPoolExecutor(max_workers=10) as executor:
                 while True:
                     conn, addr = s.accept()
                     print (f'New connection accepted from: {addr[0]}:{addr[1]}')
-                    manager = Manager(db_cursor=db.get_cursor())
-                    executor.submit()
+                    executor.submit(self.handle_client, conn, db_conn)
+
+    def handle_client(self, conn: socket, db_conn):
+        try:
+            raw_data = []
+            while True:
+                chunk = conn.recv(1024).decode('utf_8')
+                if not chunk:
+                    break
+                data.append(chunk.decode('utf-8'))
+
+            raw_data = ''.join(data).strip()
+            data = loads(raw_data)
+            operation = data['operation']
+
+            if operation in operation_mapping:
+                manager_class, method_name = operation_mapping[operation]
+                manager = manager_class(db_conn)
+                method = getattr(manager, method_name)
+                response = method()
+                response_data = dumps({'status': 'success', 'response': response})
+                conn.sendall(response.encode('utf-8'))
+            else:
+                raise ValueError("Unsupported operation")
+            
+            conn.sendall(response_data.encode('utf-8'))
+
+        except Exception as e:
+            error_response = dumps({'status': 'error', 'message': str(e)})
+            conn.sendall(error_response.encode('utf-8'))
+        finally:
+            conn.close()
 
 server = Server(5500).serve()
