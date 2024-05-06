@@ -4,10 +4,25 @@ class AppointmentsManager:
 
     def get_appointments(self):
         """Retrieve all appointments."""
+
         query = '''
-                SELECT * FROM Appointments;
+                SELECT a.*, d.full_name AS doctor_name
+                FROM appointments a
+                JOIN doctors d ON a.doctor_id = d.doctor_id;
                 '''
-        response = self.db.execute_query(query)
+        
+        response = {}
+        
+
+        appointments = self.db.execute_query(query)
+
+        for a in appointments:
+            response['doctor_id'] = a[0]
+            response['date'] = a[1].strftime("%Y-%m-%d %H:%M:%S")
+            response['patient_id'] = a[2]
+            response['doctors_full_name'] = a[3]
+            response['available'] = True if not a[2] else False
+
         return response
 
     def confirm_appointment(self, appointment_id):

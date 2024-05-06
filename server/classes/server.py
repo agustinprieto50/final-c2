@@ -46,28 +46,23 @@ class Server():
 
     def handle_client(self, conn: socket, db_conn):
         try:
-            raw_data = []
-            while True:
-                chunk = conn.recv(1024).decode('utf_8')
-                if not chunk:
-                    break
-                data.append(chunk.decode('utf-8'))
-
-            raw_data = ''.join(data).strip()
-            data = loads(raw_data)
+            raw = conn.recv(4096)
+            print(raw)
+            data = loads(raw.decode('utf-8'))
+            print('data: ', data)
             operation = data['operation']
 
             if operation in operation_mapping:
                 manager_class, method_name = operation_mapping[operation]
                 manager = manager_class(db_conn)
                 method = getattr(manager, method_name)
-                response = method()
+                response = method(**data.get('params', {}))
                 response_data = dumps({'status': 'success', 'response': response})
-                conn.sendall(response.encode('utf-8'))
+                conn.sendall(response_data.encode('utf-8'))
+                conn.sendall(b"END_OF_MESSAGE")  
+
             else:
                 raise ValueError("Unsupported operation")
-            
-            conn.sendall(response_data.encode('utf-8'))
 
         except Exception as e:
             error_response = dumps({'status': 'error', 'message': str(e)})
@@ -75,4 +70,6 @@ class Server():
         finally:
             conn.close()
 
-server = Server(5500).serve()
+
+if __name__ == '__main__':
+    server = Server(5500).serve()

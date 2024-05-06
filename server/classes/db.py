@@ -31,7 +31,8 @@ class DataBase():
             try:
                 cursor.execute(query=query)
                 data = cursor.fetchall()
-                cursor.close()
+                self.db_conn.commit()
+                print('db: response', data)
                 return data
             except Exception as e:
                 print('An error occured while making a petition to the DB')

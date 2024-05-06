@@ -27,3 +27,14 @@ Se utilizan sockets para aceptar las conexiones. Se crea un thread por conexion,
 
 Mutex para evitar race conditions
 
+## TODO 
+Adquirir un lock solo cuando se va a realizar una reserva
+User LOG In and sign up
+Admin roles 
+Investigate python's security
+
+## TODO 
+- Client server
+- Add security
+- Create manager methods with sql clauses
+

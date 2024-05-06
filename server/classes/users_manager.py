@@ -13,8 +13,5 @@ class UsersManager():
         return response
     
 
-db = DataBase()
 
-manager = UsersManager(db)
-manager.get_doctors()
     
