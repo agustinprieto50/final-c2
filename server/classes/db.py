@@ -1,4 +1,5 @@
 import psycopg2 as pg
+from psycopg2 import extras
 import os
 from dotenv import load_dotenv
 
@@ -24,18 +25,24 @@ class DataBase():
             print('Connection to Data Base succesful!')
 
     def get_cursor(self):
-        return self.db_conn.cursor()
+        print('Getting cursor...')
+        return self.db_conn.cursor(cursor_factory=extras.RealDictCursor)
+        
     
-    def execute_query(self, query):
+    def execute_query(self, query, params=None):
         with self.get_cursor() as cursor:
             try:
-                cursor.execute(query=query)
-                data = cursor.fetchall()
+                cursor.execute(query, params)
+                if cursor.description:
+                    data = cursor.fetchall()
+                else:
+                    data = None
                 self.db_conn.commit()
-                print('db: response', data)
+                print('response', data)
                 return data
-            except Exception as e:
+            except pg.Error as e:
                 print('An error occured while making a petition to the DB')
+                self.db_conn.rollback()
         
     def close_conn(self):
         return self.db_conn.close()

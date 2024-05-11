@@ -1,31 +1,26 @@
 class AppointmentsManager:
-    def __init__(self, db):
-        self.db = db
+    def __init__(self, db_conn):
+        self.db = db_conn
+        # self.token = token
+
+    def validate_token(self, token):
+        return self.users_manager.validate_token(token)
 
     def get_appointments(self):
-        """Retrieve all appointments."""
-
+        """Retrieve all appointments with doctor details."""
         query = '''
-                SELECT a.*, d.full_name AS doctor_name
+                SELECT a.appointment_id, a.appointment_date, d.user_id, u.full_name AS doctor_name, u.specialty
                 FROM appointments a
-                JOIN doctors d ON a.doctor_id = d.doctor_id;
+                JOIN doctors d ON a.doctor_id = d.doctor_id
+                JOIN users u ON d.user_id = u.user_id;
                 '''
-        
-        response = {}
-        
-
         appointments = self.db.execute_query(query)
+        if appointments:
+            return {'status': 'success', 'data': appointments}
+        else:
+            return {'status': 'error', 'message': 'No appointments found.'}
 
-        for a in appointments:
-            response['doctor_id'] = a[0]
-            response['date'] = a[1].strftime("%Y-%m-%d %H:%M:%S")
-            response['patient_id'] = a[2]
-            response['doctors_full_name'] = a[3]
-            response['available'] = True if not a[2] else False
-
-        return response
-
-    def confirm_appointment(self, appointment_id):
+    def confirm_appointment(self, appointment_id, token):
         """Confirm an appointment by setting it as confirmed."""
         query = f'''
                 UPDATE Appointments

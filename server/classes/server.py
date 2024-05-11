@@ -3,9 +3,10 @@ from json import (loads, dumps)
 from concurrent.futures import ThreadPoolExecutor
 from threading import Lock
 from db import DataBase
-from users_manager import UsersManager
+import authentication as auth
 from appointments_manager import AppointmentsManager
 from db import DataBase
+from redis import Redis
 
 
 """
@@ -15,14 +16,6 @@ Por cada conexion, se instanciara un objeto de la clase Manager,
 y se agregara al ThreadPoolExecutor como un Thread.
 """
 
-operation_mapping = {
-    'log_in': (UsersManager, 'log_in'),
-    'log_out': (UsersManager, 'log_out'),
-    'get_appointments': (AppointmentsManager, 'get_appointments'),
-    'confirm_appointment': (AppointmentsManager, 'confirm_appointment'),
-    'cancel_appointment': (AppointmentsManager, 'cancel_appointment'),
-    'get_appointments_per_doctor': (AppointmentsManager, 'get_appointments_per_doctor')
-}
 
 class Server():
     def __init__(self, port):
@@ -33,6 +26,9 @@ class Server():
         print('Starting server...')
 
         db_conn = DataBase()
+        redis_conn = self.connect_to_redis_server()
+        self.authenticator = auth.Authentication(db_conn, redis_conn)
+        self.appointments_manager = AppointmentsManager(db_conn)
 
         with socket(AF_INET, SOCK_STREAM) as s:
             s.bind((self.host, self.port))
@@ -46,23 +42,33 @@ class Server():
 
     def handle_client(self, conn: socket, db_conn):
         try:
+            authenticated = False
+            user_token = None
             raw = conn.recv(4096)
-            print(raw)
             data = loads(raw.decode('utf-8'))
-            print('data: ', data)
             operation = data['operation']
-
-            if operation in operation_mapping:
-                manager_class, method_name = operation_mapping[operation]
-                manager = manager_class(db_conn)
-                method = getattr(manager, method_name)
-                response = method(**data.get('params', {}))
-                response_data = dumps({'status': 'success', 'response': response})
+            if operation == 'log_in':
+                email = data['email']
+                password = data['password']
+                response = self.authenticator.log_in(email, password)
+                print('response: ', response)
+                user_token = response['token']
+                print('user_token: ', user_token)
+                if user_token:
+                    authenticated = True
+                    response_data = dumps(response)
+                    print('response_data: ', response_data)
+                    conn.sendall(response_data.encode('utf-8'))
+            if authenticated:
+                response_data = self.appointments_manager[operation](**data)
                 conn.sendall(response_data.encode('utf-8'))
-                conn.sendall(b"END_OF_MESSAGE")  
+            else: 
+                response_data = dumps({'status': 'error', 'message': 'You are not logged in'})
+                conn.sendall(response_data.encode('utf-8'))
+                conn.close()
 
-            else:
-                raise ValueError("Unsupported operation")
+            # else:
+            #     raise ValueError("Unsupported operation")
 
         except Exception as e:
             error_response = dumps({'status': 'error', 'message': str(e)})
@@ -70,6 +76,11 @@ class Server():
         finally:
             conn.close()
 
+    def connect_to_redis_server(self):
+        return Redis(host='localhost', port=6379, db=0, decode_responses=True)
+
+def main():
+    server = Server(5500).serve()
 
 if __name__ == '__main__':
-    server = Server(5500).serve()
+    main()
