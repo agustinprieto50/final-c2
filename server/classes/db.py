@@ -25,7 +25,6 @@ class DataBase():
             print('Connection to Data Base succesful!')
 
     def get_cursor(self):
-        print('Getting cursor...')
         return self.db_conn.cursor(cursor_factory=extras.RealDictCursor)
         
     
@@ -38,10 +37,9 @@ class DataBase():
                 else:
                     data = None
                 self.db_conn.commit()
-                print('response', data)
                 return data
             except pg.Error as e:
-                print('An error occured while making a petition to the DB')
+                print('An error occured while making a petition to the Data Base')
                 self.db_conn.rollback()
         
     def close_conn(self):

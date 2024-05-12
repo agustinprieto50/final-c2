@@ -10,7 +10,6 @@ class Authentication():
     def __init__(self, db: DataBase, redis_conn: Redis):
         self.db = db
         self.redis_conn = redis_conn
-
         self.secret_key = os.getenv('SECRET_KEY')
 
     def sign_up(self, patient_id, first_name, last_name, email, password):
@@ -34,9 +33,9 @@ class Authentication():
             if result:
                 user = [dict(row) for row in result][0]
                 user_id, hashed_password = user['user_id'], user['password']
+                print('user_id', user_id)
                 if self.check_pw(password, hashed_password):
                     token = self.generate_token(user_id, email)
-                    print('token: ', token)
                     self.redis_conn.setex(token, 86400, email)  
                     print("Login successful! User ID:", user_id)
                     print("Generated token:", token)
@@ -65,18 +64,8 @@ class Authentication():
         return jwt.encode(payload, self.secret_key, algorithm='HS256')
     
     def validate_token(self, token):
-        try:
-            payload = jwt.decode(token, self.secret_key, algorithms=['HS256'])
-            if token in self.invalid_tokens:
-                return False
-            else:
-                return payload['patient_id']
-        except jwt.ExpiredSignatureError:
-            # Token expirado
-            return False
-        except jwt.InvalidTokenError:
-            # Token invalido
-            return False
+        token_exists = self.redis_conn.exists(token)
+        return token_exists
 
     def hash_password(self, password):
         salt = bcrypt.gensalt()

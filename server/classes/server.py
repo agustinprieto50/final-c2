@@ -3,10 +3,13 @@ from json import (loads, dumps)
 from concurrent.futures import ThreadPoolExecutor
 from threading import Lock
 from db import DataBase
-import authentication as auth
 from appointments_manager import AppointmentsManager
 from db import DataBase
 from redis import Redis
+from datetime import datetime
+
+import authentication as auth
+
 
 
 """
@@ -44,31 +47,52 @@ class Server():
         try:
             authenticated = False
             user_token = None
-            raw = conn.recv(4096)
-            data = loads(raw.decode('utf-8'))
-            operation = data['operation']
-            if operation == 'log_in':
-                email = data['email']
-                password = data['password']
-                response = self.authenticator.log_in(email, password)
-                print('response: ', response)
-                user_token = response['token']
-                print('user_token: ', user_token)
-                if user_token:
-                    authenticated = True
-                    response_data = dumps(response)
-                    print('response_data: ', response_data)
-                    conn.sendall(response_data.encode('utf-8'))
-            if authenticated:
-                response_data = self.appointments_manager[operation](**data)
-                conn.sendall(response_data.encode('utf-8'))
-            else: 
-                response_data = dumps({'status': 'error', 'message': 'You are not logged in'})
-                conn.sendall(response_data.encode('utf-8'))
-                conn.close()
 
-            # else:
-            #     raise ValueError("Unsupported operation")
+            while True:  # Loop to keep listening for requests
+                print(conn.getpeername())
+                raw = conn.recv(4096)
+                if not raw:
+                    break  # If no data is received, break the loop to close the connection
+
+                data = loads(raw.decode('utf-8'))
+                operation = data.get('operation')
+
+                print(f'Operation: {operation}, Data: {data}')
+
+                if not operation:
+                    raise ValueError("Operation is required")
+
+                if operation == 'log_in':
+                    email = data['email']
+                    password = data['password']
+                    response = self.authenticator.log_in(email, password)
+                    if 'token' in response:
+                        user_token = response['token']
+                        authenticated = True
+                    response_data = dumps(response)
+                    conn.sendall(response_data.encode('utf-8') + b'\n')
+                elif operation == 'log_out':
+                    authenticated = False
+                    user_token = None
+                    response_data = dumps({'status': 'success', 'message': 'Logged out successfully'})
+                    conn.sendall(response_data.encode('utf-8') + b'\n')
+                    break
+                elif authenticated:
+                    try:
+                        print(f'Operation: {operation}, Data: {data}')
+                        method = getattr(self.appointments_manager, operation)
+                        print('params: ', data['params'])
+                        response_data = method(**data['params'])
+                        print(f'Response data: {response_data}') 
+                        response_data = dumps(response_data)
+                        print(f'Response data: {response_data}')
+                        conn.sendall(response_data.encode('utf-8') + b'\n')
+                    except AttributeError:
+                        response_data = dumps({'status': 'error', 'message': f'Operation {operation} not supported'})
+                        conn.sendall(response_data.encode('utf-8' + b'\n'))
+                else:
+                    response_data = dumps({'status': 'error', 'message': 'You are not logged in'})
+                    conn.sendall(response_data.encode('utf-8') + b'\n')
 
         except Exception as e:
             error_response = dumps({'status': 'error', 'message': str(e)})
@@ -78,6 +102,10 @@ class Server():
 
     def connect_to_redis_server(self):
         return Redis(host='localhost', port=6379, db=0, decode_responses=True)
+    
+    def date_time_converter(self, o):
+        if isinstance(o, datetime.datetime):
+            return o.__str__()
 
 def main():
     server = Server(5500).serve()
