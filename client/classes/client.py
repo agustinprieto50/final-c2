@@ -22,13 +22,30 @@ class Client():
             self.connected = False
 
     def send_request(self, request_data):
-        if self.connected:
-            request_json = dumps(request_data)
-            self.s.sendall(request_json.encode('utf-8'))
-            response = self.s.recv(4096)
-            return loads(response.decode('utf-8'))
-        else:
-            return None
+        print('request_data', request_data)
+        try:
+            if self.connected:
+                request_json = dumps(request_data) + '\n'
+                self.s.sendall(request_json.encode('utf-8'))
+                full_response = b''
+                while True:
+                    part = self.s.recv(4096)
+                    if not part:
+                        print("No more data; the server may have closed the connection.")
+                        break                        
+                    full_response += part
+                    if b'\n' in part:
+                        break
+
+                full_response = full_response.split(b'\n')[0]
+                print('full_response', full_response)
+                return loads(full_response.decode('utf-8'))
+            else:
+                return None
+            
+        except BrokenPipeError as e:
+            self.connect()  # Attempt to reconnect
+            self.s.sendall(request_json.encode('utf-8'))  # Try to send again
         
     def log_in(self):
         response = self.send_request({
@@ -44,15 +61,42 @@ class Client():
         else:
             print("Login failed.")
 
+    def display_appointments(self):
+        response = self.send_request({'operation': 'get_appointments', 'token': self.token, 'params': {}})
+        if response and response['status'] == 'success':
+            appointments = response['data']
+            for idx, appointment in enumerate(appointments):
+                print(f"{idx+1}. Appointment ID: {appointment['appointment_id']} Doctor: {appointment['doctor_full_name']}, Date: {appointment['appointment_date']}")
+        else:
+            print("No response from server.")
+
+    def confirm_appointment(self, appointment_id):
+        response = self.send_request({'operation': 'confirm_appointment', 'params': {'appointment_id': appointment_id, 'token': self.token}})
+        if response and response['status'] == 'success':
+            return response
+           
+
     def handle_operation(self):
         while True:
+            print('\n')
             operation = input("Enter operation: ")
+            response = None
 
             if operation.lower() == 'log_out':
                 self.send_request({'operation': 'log_out', 'token': self.token})
                 break
-            data = {'operation': operation, 'token': self.token}
-            response = self.send_request(data)
+
+            if operation.lower() == 'get_appointments':
+                print(operation)
+                self.display_appointments()
+                continue
+
+            if operation.lower() == 'confirm_appointment':
+                appointment_id = input("Enter appointment ID: ")
+                response = self.confirm_appointment(appointment_id)
+                continue
+
+            
             if response:
                 print(response['message'])
             else:
