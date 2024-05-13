@@ -39,7 +39,7 @@ class DataBase():
                 self.db_conn.commit()
                 return data
             except pg.Error as e:
-                print('An error occured while making a petition to the Data Base')
+                print('An error occured while making a petition to the Data Base', e)
                 self.db_conn.rollback()
         
     def close_conn(self):

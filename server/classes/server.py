@@ -45,11 +45,8 @@ class Server():
 
     def handle_client(self, conn: socket, db_conn):
         try:
-            authenticated = False
-            user_token = None
 
             while True:  # Loop to keep listening for requests
-                print(conn.getpeername())
                 raw = conn.recv(4096)
                 if not raw:
                     break  # If no data is received, break the loop to close the connection
@@ -57,7 +54,7 @@ class Server():
                 data = loads(raw.decode('utf-8'))
                 operation = data.get('operation')
 
-                print(f'Operation: {operation}, Data: {data}')
+                # print(f'Operation: {operation}, Data: {data}')
 
                 if not operation:
                     raise ValueError("Operation is required")
@@ -67,32 +64,28 @@ class Server():
                     password = data['password']
                     response = self.authenticator.log_in(email, password)
                     if 'token' in response:
-                        user_token = response['token']
-                        authenticated = True
+                        user_token = response['token']                        
                     response_data = dumps(response)
                     conn.sendall(response_data.encode('utf-8') + b'\n')
                 elif operation == 'log_out':
-                    authenticated = False
                     user_token = None
+                    self.authenticator.log_out(user_token)
                     response_data = dumps({'status': 'success', 'message': 'Logged out successfully'})
                     conn.sendall(response_data.encode('utf-8') + b'\n')
                     break
-                elif authenticated:
-                    try:
-                        print(f'Operation: {operation}, Data: {data}')
-                        method = getattr(self.appointments_manager, operation)
-                        print('params: ', data['params'])
-                        response_data = method(**data['params'])
-                        print(f'Response data: {response_data}') 
-                        response_data = dumps(response_data)
-                        print(f'Response data: {response_data}')
-                        conn.sendall(response_data.encode('utf-8') + b'\n')
-                    except AttributeError:
-                        response_data = dumps({'status': 'error', 'message': f'Operation {operation} not supported'})
-                        conn.sendall(response_data.encode('utf-8' + b'\n'))
                 else:
-                    response_data = dumps({'status': 'error', 'message': 'You are not logged in'})
-                    conn.sendall(response_data.encode('utf-8') + b'\n')
+                    if user_token and self.authenticator.validate_token(user_token):
+                        try:
+                            method = getattr(self.appointments_manager, operation)
+                            response_data = method(**data['params'])
+                            response_data = dumps(response_data)
+                            conn.sendall(response_data.encode('utf-8') + b'\n')
+                        except AttributeError:
+                            response_data = dumps({'status': 'error', 'message': f'Operation {operation} not supported'})
+                            conn.sendall(response_data.encode('utf-8' + b'\n'))
+                    else:
+                        response_data = dumps({'status': 'error', 'messaxge': 'You are not logged in'})
+                        conn.sendall(response_data.encode('utf-8') + b'\n')
 
         except Exception as e:
             error_response = dumps({'status': 'error', 'message': str(e)})

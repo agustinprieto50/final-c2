@@ -29,16 +29,14 @@ class Authentication():
         query = "SELECT user_id, password FROM users WHERE email = %s"
         try:
             result = self.db.execute_query(query, (email,)) 
-            print('result', [dict(row) for row in result][0])
             if result:
                 user = [dict(row) for row in result][0]
                 user_id, hashed_password = user['user_id'], user['password']
-                print('user_id', user_id)
                 if self.check_pw(password, hashed_password):
                     token = self.generate_token(user_id, email)
                     self.redis_conn.setex(token, 86400, email)  
                     print("Login successful! User ID:", user_id)
-                    print("Generated token:", token)
+                    # print("Token:", token)
                     return {'status': 'success', 'token': token}
                 else:
                     print("Invalid password.")

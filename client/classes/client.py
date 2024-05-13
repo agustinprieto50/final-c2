@@ -1,6 +1,11 @@
 from argparse import ArgumentParser
 from socket import (socket, AF_INET, SOCK_STREAM)
 from json import (loads, dumps, JSONDecodeError)
+from jwt import decode
+import os
+
+SECRET_KEY = os.getenv('SECRET_KEY')
+
 
 class Client():
     def __init__(self, email=None, password=None, host='localhost', port=5500):
@@ -22,7 +27,6 @@ class Client():
             self.connected = False
 
     def send_request(self, request_data):
-        print('request_data', request_data)
         try:
             if self.connected:
                 request_json = dumps(request_data) + '\n'
@@ -38,7 +42,6 @@ class Client():
                         break
 
                 full_response = full_response.split(b'\n')[0]
-                print('full_response', full_response)
                 return loads(full_response.decode('utf-8'))
             else:
                 return None
@@ -53,13 +56,19 @@ class Client():
             'email': self.email,
             'password': self.password
         })
-        print(response)
         if response and response['status'] == 'success':
             self.token = response['token']
             print("Login successful!")
 
         else:
             print("Login failed.")
+
+    def log_out(self):
+        response = self.send_request({'operation': 'log_out', 'token': self.token})
+        if response and response['status'] == 'success':
+            print("Logged out successfully!")
+        else:       
+            print("Error logging out.")
 
     def display_appointments(self):
         response = self.send_request({'operation': 'get_appointments', 'token': self.token, 'params': {}})
@@ -70,39 +79,56 @@ class Client():
         else:
             print("No response from server.")
 
+    def display_appointments_per_patient(self):
+        response = self.send_request({'operation': 'get_appointments_per_patient', 'params': {'token': self.token}})
+        if response and response['status'] == 'success':
+            appointments = response['data']
+            for idx, appointment in enumerate(appointments):
+                print(f"{idx+1}. Appointment ID: {appointment['appointment_id']} Doctor: {appointment['doctor_full_name']}, Date: {appointment['appointment_date']}")
+        else:
+            print("No appointments found.")
+
     def confirm_appointment(self, appointment_id):
         response = self.send_request({'operation': 'confirm_appointment', 'params': {'appointment_id': appointment_id, 'token': self.token}})
         if response and response['status'] == 'success':
-            return response
-           
+            print("Appointment confirmed!")
+        else:
+            print("Error confirming appointment.")
+
+    def cancel_appointment(self, appointment_id):
+        response = self.send_request({'operation': 'cancel_appointment', 'params': {'appointment_id': appointment_id, 'token': self.token}})
+        if response and response['status'] == 'success':
+            print("Appointment cancelled!")
+        else:
+            print("Error cancelling appointment.")
 
     def handle_operation(self):
         while True:
-            print('\n')
             operation = input("Enter operation: ")
-            response = None
 
             if operation.lower() == 'log_out':
                 self.send_request({'operation': 'log_out', 'token': self.token})
                 break
 
             if operation.lower() == 'get_appointments':
-                print(operation)
                 self.display_appointments()
                 continue
 
             if operation.lower() == 'confirm_appointment':
                 appointment_id = input("Enter appointment ID: ")
-                response = self.confirm_appointment(appointment_id)
+                self.confirm_appointment(appointment_id)
                 continue
 
-            
-            if response:
-                print(response['message'])
-            else:
-                print("No response from server.")
-                break
+            if operation.lower() == 'cancel_appointment':
+                appointment_id = input("Enter appointment ID: ")
+                self.cancel_appointment(appointment_id)
+                continue
 
+            if operation.lower() == 'my_appointments':
+                self.display_appointments_per_patient()
+                continue
+            
+           
     def run(self):
         self.connect()
         if not self.connected:
