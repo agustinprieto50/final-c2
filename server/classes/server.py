@@ -23,7 +23,7 @@ y se agregara al ThreadPoolExecutor como un Thread.
 class Server():
     def __init__(self, port):
         self.port = port
-        self.host = "localhost"
+        self.host = "0.0.0.0"
 
     def serve(self):
         print('Starting server...')
@@ -46,7 +46,7 @@ class Server():
     def handle_client(self, conn: socket, db_conn):
         try:
 
-            while True:  # Loop to keep listening for requests
+            while True: 
                 raw = conn.recv(4096)
                 if not raw:
                     break  # If no data is received, break the loop to close the connection
@@ -94,14 +94,14 @@ class Server():
             conn.close()
 
     def connect_to_redis_server(self):
-        return Redis(host='localhost', port=6379, db=0, decode_responses=True)
+        return Redis(host='redis_server', port=6379, db=0, decode_responses=True)
     
     def date_time_converter(self, o):
         if isinstance(o, datetime.datetime):
             return o.__str__()
 
 def main():
-    server = Server(5500).serve()
+    Server(5500).serve()
 
 if __name__ == '__main__':
     main()

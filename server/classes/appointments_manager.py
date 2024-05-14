@@ -1,5 +1,5 @@
 from datetime import datetime
-from jwt import decode
+import jwt
 import os
 from threading import Lock
 from authentication import Authentication
@@ -17,7 +17,7 @@ class AppointmentsManager:
         self.lock = Lock()  
     
     def decode_token(self, token):
-        return decode(token, SECRET_KEY, algorithms=['HS256'])
+        return jwt.decode(token, SECRET_KEY, algorithms=['HS256'])
 
     def get_appointments(self):
         """Retrieve available appointments where no patient is assigned."""
