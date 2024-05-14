@@ -52,6 +52,7 @@ class Authentication():
     def log_out(self, token):
         self.redis_conn.delete(token)
         print("Logged out successfully!")
+        return {'status': 'success', 'message': 'Logged out successfully'}
 
     def generate_token(self, patient_id, email):
         payload = {

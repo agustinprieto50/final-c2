@@ -67,6 +67,7 @@ class Client():
         response = self.send_request({'operation': 'log_out', 'token': self.token})
         if response and response['status'] == 'success':
             print("Logged out successfully!")
+            self.s.close()
         else:       
             print("Error logging out.")
 
@@ -101,6 +102,82 @@ class Client():
             print("Appointment cancelled!")
         else:
             print("Error cancelling appointment.")
+
+    def handle_admin_operations(self, operation):
+        if operation.lower() == 'configure_new_patient':
+            self.configure_new_patient()
+        elif operation.lower() == 'configure_new_doctor':
+            self.configure_new_doctor()
+        elif operation.lower() == 'add_new_appointment':
+            self.add_new_appointment()
+        elif operation.lower() == 'delete_appointment':
+            self.delete_appointment()
+        elif operation.lower() == 'update_appointment':
+            self.update_appointment()
+
+    def configure_new_patient(self):
+        name = input("Enter patient's name: ")
+        email = input("Enter patient's email: ")
+        response = self.send_request({
+            'operation': 'add_patient',
+            'name': name,
+            'email': email
+        })
+        if response and response['status'] == 'success':
+            print("Patient added successfully!")
+        else:
+            print("Failed to add patient:", response.get('message', 'Unknown error'))
+
+    def configure_new_doctor(self):
+        name = input("Enter doctor's name: ")
+        specialty = input("Enter doctor's specialty: ")
+        response = self.send_request({
+            'operation': 'add_doctor',
+            'name': name,
+            'specialty': specialty
+        })
+        if response and response['status'] == 'success':
+            print("Doctor added successfully!")
+        else:
+            print("Failed to add doctor:", response.get('message', 'Unknown error'))
+
+    def add_new_appointment(self):
+        doctor_id = input("Enter doctor's ID: ")
+        date = input("Enter appointment date (YYYY-MM-DD): ")
+        response = self.send_request({
+            'operation': 'add_appointment',
+            'doctor_id': doctor_id,
+            'date': date
+        })
+        if response and response['status'] == 'success':
+            print("Appointment added successfully!")
+        else:
+            print("Failed to add appointment:", response.get('message', 'Unknown error'))
+
+    def delete_appointment(self):
+        appointment_id = input("Enter appointment ID to delete: ")
+        response = self.send_request({
+            'operation': 'delete_appointment',
+            'appointment_id': appointment_id
+        })
+        if response and response['status'] == 'success':
+            print("Appointment deleted successfully!")
+        else:
+            print("Failed to delete appointment:", response.get('message', 'Unknown error'))
+
+    def update_appointment(self):
+        appointment_id = input("Enter appointment ID to update: ")
+        new_date = input("Enter new appointment date (YYYY-MM-DD): ")
+        response = self.send_request({
+            'operation': 'update_appointment',
+            'appointment_id': appointment_id,
+            'new_date': new_date
+        })
+        if response and response['status'] == 'success':
+            print("Appointment updated successfully!")
+        else:
+            print("Failed to update appointment:", response.get('message', 'Unknown error'))
+
 
     def handle_operation(self):
         while True:

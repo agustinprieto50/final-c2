@@ -106,3 +106,27 @@ class AppointmentsManager:
         response = self.db.execute_query(query)
         return response
 
+    def add_patient(self, name, email, **kwargs):
+        query = "INSERT INTO patients (name, email) VALUES (%s, %s);"
+        self.db.execute_query(query, (name, email))
+        return {'status': 'success', 'message': 'Patient added successfully'}
+
+    def add_doctor(self, name, specialty):
+        query = "INSERT INTO doctors (name, specialty) VALUES (%s, %s);"
+        self.db.execute_query(query, (name, specialty))
+        return {'status': 'success', 'message': 'Doctor added successfully'}
+
+    def add_appointment(self, doctor_id, date):
+        query = "INSERT INTO appointments (doctor_id, appointment_date) VALUES (%s, %s);"
+        self.db.execute_query(query, (doctor_id, date))
+        return {'status': 'success', 'message': 'Appointment added successfully'}
+
+    def delete_appointment(self, appointment_id):
+        query = "DELETE FROM appointments WHERE appointment_id = %s;"
+        self.db.execute_query(query, (appointment_id,))
+        return {'status': 'success', 'message': 'Appointment deleted successfully'}
+
+    def update_appointment(self, appointment_id, new_date, **kwargs):
+        query = "UPDATE appointments SET appointment_date = %s WHERE appointment_id = %s;"
+        self.db.execute_query(query, (new_date, appointment_id))
+        return {'status': 'success', 'message': 'Appointment updated successfully'}
